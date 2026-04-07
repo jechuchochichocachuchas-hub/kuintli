@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Punto de Venta Kuintli</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root { --rosa: #E6007E; --azul: #0078D7; --verde: #27ae60; --rojo: #e74c3c; --oscuro: #1a1a1a; --gris: #f4f7f6; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; background: var(--gris); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+        header { background: white; border-bottom: 3px solid var(--rosa); padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .logo { color: var(--rosa); font-weight: 900; font-size: 18px; text-transform: uppercase; }
+        nav { background: #fff; display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; padding: 10px; border-bottom: 1px solid #ddd; }
+        .nav-tab { display: flex; flex-direction: column; align-items: center; color: white; padding: 10px 5px; border-radius: 12px; border: none; cursor: pointer; }
+        .btn-v { background: var(--rosa); } .btn-g { background: var(--azul); } .btn-l { background: var(--oscuro); } .btn-c { background: var(--verde); } .btn-s { background: #f1c40f; }
+        .nav-tab i { font-size: 22px; }
+        .nav-tab span { font-size: 9px; font-weight: bold; margin-top: 4px; text-transform: uppercase; }
+        .main-content { flex: 1; padding: 15px; overflow-y: auto; padding-bottom: 100px; }
+        .view { display: none; } .view.active { display: block; }
+        .card { background: white; border-radius: 20px; padding: 15px; box-shadow: 0 5px 15px rgba(0,0,0,0.05); margin-bottom: 15px; }
+        .input-master { width: 100%; padding: 15px; margin: 5px 0; border: 2px solid #eee; border-radius: 12px; font-size: 16px; outline: none; }
+        .input-duplicado { border: 3px solid var(--rojo) !important; background: #fff5f5; color: var(--rojo); }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th { font-size: 10px; color: #888; text-transform: uppercase; padding: 8px; border-bottom: 2px solid #eee; }
+        td { padding: 12px 4px; text-align: center; border-bottom: 1px solid #f9f9f9; font-size: 13px; }
+
+        /* Ajuste de entradas de tabla */
+        .qty-input { width: 45px; padding: 8px; border: 2px solid #ddd; border-radius: 8px; text-align: center; font-weight: bold; }
+        .desc-input { width: 45px; padding: 8px; border: 2px solid #ffe6f2; border-radius: 8px; text-align: center; color: var(--rosa); font-weight: bold; }
+        
+        /* ENTRADAS GRANDES PARA STOCK (Precio y Piezas) */
+        .stock-edit-input { 
+            width: 80px; 
+            padding: 12px 5px; 
+            border: 2px solid var(--azul); 
+            border-radius: 10px; 
+            text-align: center; 
+            font-size: 18px; 
+            font-weight: 800; 
+            color: var(--oscuro);
+            background: #f0f7ff;
+        }
+
+        .total-box { background: var(--oscuro); color: #00ff00; padding: 20px; border-radius: 15px; text-align: center; margin: 10px 0; box-shadow: inset 0 0 10px #000; }
+        .btn-accion { width: 100%; padding: 18px; border-radius: 15px; border: none; font-weight: bold; font-size: 18px; color: white; cursor: pointer; }
+        .log-item { padding: 12px; border-radius: 10px; margin-bottom: 8px; border-left: 6px solid #ccc; background: white; font-size: 13px; box-shadow: 0 2px 5px rgba(0,0,0,0.03); }
+        .log-v { border-left-color: var(--rojo); } .log-s { border-left-color: var(--verde); }
+        .creator-tag { text-align: center; font-size: 10px; color: #bbb; padding: 10px; font-weight: bold; text-transform: uppercase; }
+    </style>
+</head>
+<body>
+
+<header><div class="logo">Punto de Venta Kuintli</div><div id="reloj" style="font-size:11px; font-weight:bold;"></div></header>
+
+<nav>
+    <div class="nav-tab btn-v" onclick="showTab('venta')"><i class="fas fa-shopping-cart"></i><span>Venta</span></div>
+    <div class="nav-tab btn-g" onclick="showTab('stock')"><i class="fas fa-boxes"></i><span>Stock</span></div>
+    <div class="nav-tab btn-l" onclick="showTab('logs')"><i class="fas fa-history"></i><span>Logs</span></div>
+    <div class="nav-tab btn-c" onclick="showTab('corte')"><i class="fas fa-file-invoice-dollar"></i><span>Corte</span></div>
+    <div class="nav-tab btn-s" onclick="toggleScanner()"><i class="fas fa-camera"></i><span>Scan</span></div>
+</nav>
+
+<div class="main-content">
+    <div id="v-venta" class="view active">
+        <div id="reader" style="display:none; width:100%; border-radius:15px; overflow:hidden; margin-bottom:10px;"></div>
+        <div class="card">
+            <input type="text" id="v-busqueda" class="input-master" placeholder="🔍 Buscar Código o Nombre..." oninput="buscar(this.value)">
+            <div id="v-sug" style="max-height:180px; overflow-y:auto; background:white; border-radius:10px;"></div>
+            <table>
+                <thead><tr><th>Cant</th><th>Prod</th><th>%Desc</th><th>Subt</th><th></th></tr></thead>
+                <tbody id="cart-body"></tbody>
+            </table>
+        </div>
+        <div class="total-box"><span>POR COBRAR</span><br><b id="v-total" style="font-size:35px;">$ 0.00</b></div>
+        <div class="card">
+            <input type="text" id="v-vendedor" class="input-master" placeholder="👤 Vendedor">
+            <select id="v-metodo" class="input-master"><option>Efectivo</option><option>Tarjeta</option><option>Transferencia</option><option>Dólares</option><option>Euros</option></select>
+            <button class="btn-accion" onclick="cobrar()" style="background:var(--rosa)">COBRAR Y REGISTRAR</button>
+        </div>
+    </div>
+
+    <div id="v-stock" class="view">
+        <div class="card">
+            <h4 style="margin:0 0 10px 0; color:var(--azul)">+ Entrada de Inventario</h4>
+            <input type="text" id="i-id" class="input-master" placeholder="Código (Ej: N-216)" oninput="validarDuplicado(this.value)">
+            <div id="err-duplicado" style="color:var(--rojo); font-size:11px; display:none; font-weight:bold; margin-bottom:5px;">⚠️ CÓDIGO YA EXISTE</div>
+            <input type="text" id="i-nom" class="input-master" placeholder="Nombre">
+            <input type="number" id="i-pre" class="input-master" placeholder="Precio $">
+            <input type="number" id="i-stock" class="input-master" placeholder="Cantidad">
+            <button class="btn-accion" id="btn-guardar" onclick="nuevoProd()" style="background:var(--azul)">GUARDAR NUEVO</button>
+        </div>
+        <div class="card" style="padding:0; overflow-x:auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID / Nombre</th>
+                        <th>Precio ($)</th>
+                        <th>Stock (Pzas)</th>
+                    </tr>
+                </thead>
+                <tbody id="stock-body"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="v-logs" class="view"><h3>Movimientos</h3><div id="logs-body"></div></div>
+
+    <div id="v-corte" class="view">
+        <div class="card" style="text-align:center;">
+            <h3>Cierre de Caja</h3>
+            <h1 id="r-monto" style="color:var(--rosa); font-size:50px; margin:10px 0;">$ 0.00</h1>
+            <div id="r-detalle-metodos" style="text-align:left; background:#eee; padding:15px; border-radius:15px; font-weight:bold; margin-bottom:10px;"></div>
+            <div id="r-detalle-prods" style="text-align:left; font-size:12px; background:#fffde7; padding:15px; border-radius:15px; border:1px solid #ddd; max-height:150px; overflow-y:auto;"></div>
+            <button class="btn-accion" onclick="cerrarCaja()" style="background:var(--verde); margin-top:15px;">FINALIZAR Y MANDAR WA</button>
+        </div>
+    </div>
+    <div class="creator-tag">CREADO POR JESUS ALEJANDRO</div>
+</div>
+
+<script>
+    const inventarioCompleto = [
+        {id:"N-1", n:"Llaveritos Papel Picado", p:35.0, s:0}, {id:"N-2", n:"Corazón Alado Papel Maché", p:750.0, s:4}, {id:"N-3", n:"Perrito Papel Maché Tenango", p:1877, s:1}, {id:"N-30", n:"Jaguar Tequilero Cabeza", p:179, s:49}, {id:"N-214", n:"Pulsera Fina Placa", p:1900, s:1}
+    ];
+
+    let db = JSON.parse(localStorage.getItem('kuintli_db')) || { prods: inventarioCompleto, ventas: [], logs: [] };
+    let carrito = [];
+
+    setInterval(() => { document.getElementById('reloj').innerText = new Date().toLocaleString(); }, 1000);
+
+    function save() { localStorage.setItem('kuintli_db', JSON.stringify(db)); }
+    function addLog(m, tipo, d="") { db.logs.unshift({ f: new Date().toLocaleTimeString(), m, t: tipo, d }); save(); }
+
+    function showTab(v) {
+        document.querySelectorAll('.view').forEach(x => x.classList.remove('active'));
+        document.getElementById('v-'+v).classList.add('active');
+        if(v === 'stock') renderStock();
+        if(v === 'logs') renderLogs();
+        if(v === 'corte') renderCorte();
+    }
+
+    function validarDuplicado(val) {
+        let existe = db.prods.some(p => p.id === val.toUpperCase());
+        document.getElementById('i-id').classList.toggle('input-duplicado', existe && val !== "");
+        document.getElementById('btn-guardar').disabled = existe && val !== "";
+        document.getElementById('err-duplicado').style.display = (existe && val !== "") ? "block" : "none";
+    }
+
+    function nuevoProd() {
+        let id = document.getElementById('i-id').value.toUpperCase();
+        let n = document.getElementById('i-nom').value;
+        let p = parseFloat(document.getElementById('i-pre').value) || 0;
+        let s = parseInt(document.getElementById('i-stock').value) || 0;
+        if(!id || !n) return;
+        db.prods.push({id, n, p, s});
+        addLog(`ALTA INVENTARIO: ${n}`, 's', `ID: ${id} | Cant: ${s}`);
+        save(); renderStock();
+        document.getElementById('i-id').value = "";
+        document.getElementById('i-nom').value = "";
+        document.getElementById('i-pre').value = "";
+        document.getElementById('i-stock').value = "";
+    }
+
+    function renderStock() {
+        document.getElementById('stock-body').innerHTML = db.prods.map((p, i) => `
+            <tr>
+                <td style="text-align:left; font-size:11px;"><b>${p.id}</b><br>${p.n}</td>
+                <td><input type="number" class="stock-edit-input" value="${p.p}" onchange="db.prods[${i}].p=parseFloat(this.value);save();addLog('Editó Precio: '+db.prods[${i}].n,'s')"></td>
+                <td><input type="number" class="stock-edit-input" value="${p.s}" onchange="db.prods[${i}].s=parseInt(this.value);save();addLog('Editó Stock: '+db.prods[${i}].n,'s')"></td>
+            </tr>`).join('');
+    }
+
+    function buscar(v) {
+        let sug = document.getElementById('v-sug');
+        if(!v) { sug.innerHTML = ""; return; }
+        let m = db.prods.filter(p => p.id.includes(v.toUpperCase()) || p.n.toLowerCase().includes(v.toLowerCase())).slice(0,5);
+        sug.innerHTML = m.map(p => `<div style="padding:15px; border-bottom:1px solid #eee;" onclick="addCart('${p.id}')"><b>${p.id}</b> - ${p.n} ($${p.p})</div>`).join('');
+    }
+
+    function addCart(id) {
+        let p = db.prods.find(x => x.id === id);
+        let ex = carrito.find(x => x.id === id);
+        if(ex) ex.c++; else carrito.push({ id: p.id, n: p.n, p: p.p, c: 1, d: 0 });
+        document.getElementById('v-busqueda').value = ""; document.getElementById('v-sug').innerHTML = ""; renderCart();
+    }
+
+    function renderCart() {
+        let t = 0;
+        document.getElementById('cart-body').innerHTML = carrito.map((it, i) => {
+            let subt = (it.p * it.c) * (1 - it.d/100); t += subt;
+            return `<tr><td><input type="number" class="qty-input" value="${it.c}" onchange="carrito[${i}].c=parseInt(this.value);renderCart()"></td>
+                <td style="font-size:11px; text-align:left">${it.n}</td>
+                <td><input type="number" class="desc-input" value="${it.d}" onchange="carrito[${i}].d=parseInt(this.value);renderCart()"></td>
+                <td>$${subt.toFixed(2)}</td><td onclick="carrito.splice(${i},1);renderCart()">❌</td></tr>`;
+        }).join('');
+        document.getElementById('v-total').innerText = `$ ${t.toFixed(2)}`;
+    }
+
+    function cobrar() {
+        if(carrito.length === 0) return;
+        let tot = document.getElementById('v-total').innerText;
+        let met = document.getElementById('v-metodo').value;
+        let logD = ""; let itms = [];
+        carrito.forEach(x => {
+            let p = db.prods.find(i => i.id === x.id); if(p) p.s -= x.c;
+            itms.push({n: x.n, c: x.c}); logD += `${x.c}x ${x.n} (-${x.d}%)<br>`;
+        });
+        db.ventas.push({ t: parseFloat(tot.replace('$ ','')), m: met, items: itms, f: new Date().toLocaleTimeString() });
+        addLog(`VENTA (${met}): ${tot}`, 'v', logD);
+        carrito = []; renderCart(); save(); alert("Venta registrada.");
+    }
+
+    function renderLogs() {
+        document.getElementById('logs-body').innerHTML = db.logs.map(l => `<div class="log-item ${l.t === 'v'?'log-v':'log-s'}"><b>${l.f}</b> - ${l.m}<br><small>${l.d}</small></div>`).join('');
+    }
+
+    function renderCorte() {
+        let t = db.ventas.reduce((a, b) => a + b.t, 0);
+        document.getElementById('r-monto').innerText = `$ ${t.toFixed(2)}`;
+        let m = { "Efectivo":0, "Tarjeta":0, "Transferencia":0, "Dólares":0, "Euros":0 };
+        let pRes = {};
+        db.ventas.forEach(v => { if(m[v.m]!==undefined) m[v.m] += v.t; v.items.forEach(it => { pRes[it.n] = (pRes[it.n] || 0) + it.c; }); });
+        document.getElementById('r-detalle-metodos').innerHTML = Object.keys(m).map(k => `${k}: $${m[k].toFixed(2)}`).join('<br>');
+        document.getElementById('r-detalle-prods').innerHTML = "<b>PRODUCTOS VENDIDOS:</b><br>" + Object.keys(pRes).map(k => `• ${pRes[k]} x ${k}`).join('<br>');
+    }
+
+    function cerrarCaja() {
+        let vdor = document.getElementById('v-vendedor').value || "Tienda";
+        let met = document.getElementById('r-detalle-metodos').innerText.replace(/\n/g,'%0A');
+        let pro = document.getElementById('r-detalle-prods').innerText.replace(/\n/g,'%0A');
+        let lgs = db.logs.map(l => `[${l.f}] ${l.m.replace('<br>',' ')}`).join('%0A');
+        let msg = `*CORTE KUINTLI MASTER*%0A*Vendedor:* ${vdor}%0A%0A*DINERO:*%0A${met}%0A%0A*PIEZAS:*%0A${pro}%0A%0A*LOGS:*%0A${lgs}%0A%0A*TOTAL: ${document.getElementById('r-monto').innerText}*`;
+        if(confirm("¿Cerrar día?")){
+            window.open(`https://wa.me/?text=${msg}`);
+            db.ventas = []; db.logs = []; save(); location.reload();
+        }
+    }
+
+    let scanner = null;
+    function toggleScanner() {
+        let r = document.getElementById('reader');
+        if(scanner) { r.style.display="none"; scanner.stop(); scanner=null; return; }
+        r.style.display="block"; scanner = new Html5Qrcode("reader");
+        scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (txt) => { addCart(txt.toUpperCase()); toggleScanner(); });
+    }
+</script>
+</body>
+</html>
